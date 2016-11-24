@@ -62,7 +62,7 @@ public class BasicBehavior {
 	HashableStateFactory hashingFactory;
 	SimulatedEnvironment env;
 
-
+	// http://burlap.cs.brown.edu/tutorials/bpl/p2.html
 	public BasicBehavior(){
 		gwdg = new GridWorldDomain(11, 11);
 		gwdg.setMapToFourRooms();
@@ -77,9 +77,9 @@ public class BasicBehavior {
 		env = new SimulatedEnvironment(domain, initialState);
 
 
-//		VisualActionObserver observer = new VisualActionObserver(domain, GridWorldVisualizer.getVisualizer(gwdg.getMap()));
-//		observer.initGUI();
-//		env.addObservers(observer);
+		//VisualActionObserver observer = new VisualActionObserver(domain, GridWorldVisualizer.getVisualizer(gwdg.getMap()));
+		//observer.initGUI();
+		//env.addObservers(observer);
 	}
 
 
@@ -123,12 +123,16 @@ public class BasicBehavior {
 
 	}
 
+    //http://burlap.cs.brown.edu/doc/burlap/behavior/singleagent/planning/stochastic/policyiteration/PolicyIteration.html
+    // http://www.programcreek.com/java-api-examples/index.php?source_dir=burlap-master/src/burlap/behavior/
+    // singleagent/planning/stochastic/policyiteration/PolicyIteration.java
 	public void valueIterationExample(String outputPath){
-
-		Planner planner = new ValueIteration(domain, 0.99, hashingFactory, 0.001, 100);
+        // We've chossen for VI to terminate when either the changes in the value function
+        // are no longer than 0.001, or 100 iterations
+		Planner planner = new ValueIteration(domain, 0.90, hashingFactory, 0.001, 100);
 		Policy p = planner.planFromState(initialState);
 
-		PolicyUtils.rollout(p, initialState, domain.getModel()).write(outputPath + "vi");
+		PolicyUtils.rollout(p, initialState, domain.getModel()).write(outputPath + "vi_0.90");
 
 		simpleValueFunctionVis((ValueFunction)planner, p);
 		//manualValueFunctionVis((ValueFunction)planner, p);
@@ -137,7 +141,9 @@ public class BasicBehavior {
 
 
 	public void qLearningExample(String outputPath){
-
+        // domain, a discount factor, a HashableStateFactory, an initial value for the Q-values,
+        // and a learning rate (which for a deterministic domain, 1.0 is a good choice)
+        // http://burlap.cs.brown.edu/doc/burlap/behavior/singleagent/learning/tdmethods/QLearning.html
 		LearningAgent agent = new QLearning(domain, 0.99, hashingFactory, 0., 1.);
 
 		//run learning for 50 episodes
@@ -147,7 +153,7 @@ public class BasicBehavior {
 			e.write(outputPath + "ql_" + i);
 			System.out.println(i + ": " + e.maxTimeStep());
 
-			//reset environment for next learning episode
+			//reset to an initial state from its current state, which may be a terminal state
 			env.resetEnvironment();
 		}
 
@@ -257,7 +263,10 @@ public class BasicBehavior {
 		};
 
 		LearningAlgorithmExperimenter exp = new LearningAlgorithmExperimenter(env, 10, 100, qLearningFactory, sarsaLearningFactory);
-		exp.setUpPlottingConfiguration(500, 250, 2, 1000,
+
+        // plot's width and height, the number of columns of plots, and the maximum window height.
+        // In this case, plots are set to be 500x200, with two columns of plots
+        exp.setUpPlottingConfiguration(500, 250, 2, 1000,
 				TrialMode.MOST_RECENT_AND_AVERAGE,
 				PerformanceMetric.CUMULATIVE_STEPS_PER_EPISODE,
 				PerformanceMetric.AVERAGE_EPISODE_REWARD);
@@ -273,15 +282,15 @@ public class BasicBehavior {
 		BasicBehavior example = new BasicBehavior();
 		String outputPath = "output/";
 
-		example.BFSExample(outputPath);
+		//example.BFSExample(outputPath);
 		//example.DFSExample(outputPath);
 		//example.AStarExample(outputPath);
-		//example.valueIterationExample(outputPath);
-		//example.qLearningExample(outputPath);
 		//example.sarsaLearningExample(outputPath);
 
-		//example.experimentAndPlotter();
+		example.valueIterationExample(outputPath);
+		//example.qLearning(outputPath);
 
+		example.experimentAndPlotter();
 		example.visualize(outputPath);
 
 	}

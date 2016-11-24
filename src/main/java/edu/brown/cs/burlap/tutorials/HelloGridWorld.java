@@ -18,8 +18,8 @@ public class HelloGridWorld {
 
 	public static void main(String[] args) {
 
-		GridWorldDomain gw = new GridWorldDomain(11,11); //11x11 grid world
-		gw.setMapToFourRooms(); //four rooms layout
+		GridWorldDomain gw = new GridWorldDomain(8,8); //11x11 grid world
+		//gw.setMapToFourRooms(); //four rooms layout
 		gw.setProbSucceedTransitionDynamics(0.8); //stochastic transitions with 0.8 success rate
 		SADomain domain = gw.generateDomain(); //generate the grid world domain
 
@@ -37,7 +37,6 @@ public class HelloGridWorld {
 		exp.addKeyAction("d", GridWorldDomain.ACTION_EAST, "");
 
 		exp.initGUI();
-
 	}
 
 }
