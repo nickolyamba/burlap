@@ -140,35 +140,57 @@ public class MyGridWorld {
         return allValues;
 	}
 
-
     public List<Double> testValueIteration(String filename){
         System.out.println("\nValue Iteration: \n---------------------------------------\n");
-        double discountRate = 0.9, termDelta= 0.001, compTime=0.0, start, end;
-        int maxIterations;
-
+        double discountRate = 0.9, termDelta= 0.001, compTime=0.0, start, end, numActions=0.0;
+        int maxIterations = 0;
+        final int MAX_ITER = 15, TRIALS = 10;
 
         Planner planner = null;
         Policy p = null;
-        for(maxIterations = 1; maxIterations <= 15; maxIterations++)
+        Episode e = null;
+
+        // hashmap to store time and number of steps for each iteration
+        Map<Integer, List<List<Double>> > map = initResultMap(MAX_ITER);
+
+        for(int j = 1; j <= TRIALS; j++)
         {
-            // We've chossen for VI to terminate when either the changes in the value function
-            // are no longer than 0.001, or 100 iterations
-            planner = new ValueIteration(domain, discountRate, hashingFactory, termDelta, maxIterations);
+            for(int i = 1; i <= 15; i++)
+            {
+                maxIterations = i;
+                // We've chossen for VI to terminate when either the changes in the value function
+                // are no longer than 0.001, or 100 iterations
+                planner = new ValueIteration(domain, discountRate, hashingFactory, termDelta, maxIterations);
 
-            // run algorithm
-            start = System.nanoTime();
-            p = planner.planFromState(initialState);
-            end = System.nanoTime();
-            compTime = end - start;
-            compTime /= Math.pow(10,9);
+                // run algorithm
+                start = System.nanoTime();
+                p = planner.planFromState(initialState);
+                end = System.nanoTime();
 
-            // write to CSV
-            writeEpisodeToCSV(PolicyUtils.rollout(p, initialState, domain.getModel()), maxIterations, compTime, filename);
-        }//for
+                compTime = end - start;
+                compTime /= Math.pow(10,9);
+
+                e = PolicyUtils.rollout(p, initialState, domain.getModel());
+
+                numActions = (double)e.numActions();
+                // Store results in the map
+                map.get(i).get(0).add(compTime);
+                map.get(i).get(1).add(numActions);
+
+                System.out.println(String.format("Time: %1$.4f,  Steps: %2$.1f\n\n", compTime, numActions));
+                // write to CSV
+                //writeEpisodeToCSV(PolicyUtils.rollout(p, initialState, domain.getModel()), maxIterations, compTime, filename);
+            }//for i run VI with different number of iterations
+        }// for j
+
+        // Get avg for each iteration and save in .csv
+        Map<Integer, List<Double>> mapAverage = mapAverage(map, MAX_ITER);
+        writeToCSVAverage(mapAverage, filename);
+
+        // show result of the last iter = MAX_ITER
+        e.write("output/" + "vi");
         String title = "VI. Time:%4$.4f  Discount: %1$.2f  Termination = %2$.3f  MaxIters = %3$d";
         String output = String.format(title, discountRate, termDelta, maxIterations, compTime);
-
-        PolicyUtils.rollout(p, initialState, domain.getModel()).write("output/" + "vi");
         List<Double> allValues = simpleValueFunctionVis((ValueFunction)planner, p, output);
         System.out.println(output);
 
@@ -206,7 +228,8 @@ public class MyGridWorld {
 
     public List<Double>  testPolicyIteration(String filename){
         System.out.println("\nPolicy Iteration: \n---------------------------------------\n");
-        double discountRate = 0.9, evalDelta = 0.0000000001, PIDelta = 0.000000001, start, end, compTime=0.0;
+        double discountRate = 0.9, evalDelta = 0.0000000001, PIDelta = 0.000000001,
+                start, end, compTime=0.0, numActions=0.0;
         int maxEvaluationIterations=2, maxPolicyIters;
         final int MAX_ITER = 15, TRIALS = 10;
 
@@ -238,11 +261,12 @@ public class MyGridWorld {
                 e = PolicyUtils.rollout(p, initialState, domain.getModel());
                 //e.write("output/" + "pi");
 
+                numActions = (double)e.numActions();
                 // Store results in the map
                 map.get(i).get(0).add(compTime);
-                map.get(i).get(1).add((double)e.numActions());
+                map.get(i).get(1).add(numActions);
 
-                System.out.println(String.format("Time: %1$.4f,  Steps: %2$d\n\n", compTime, e.numActions()));
+                System.out.println(String.format("Time: %1$.4f,  Steps: %2$.1f\n\n", compTime, numActions));
                 // write to CSV
                 //writeEpisodeToCSV(PolicyUtils.rollout(p, initialState, domain.getModel()), maxPolicyIters, compTime, filename);
             }//for i  run PI with different number of iterations
@@ -555,9 +579,9 @@ public class MyGridWorld {
         //List<Double> VIValues = gridWorld.valueIteration(outputPath);
         //List<Double> QValues = gridWorld.testQLearning("Q_small");
 
-        gridWorld.testPolicyIteration("TI_small");
+        //gridWorld.testPolicyIteration("TI_small");
 
-        //List<Double> VIValues = gridWorld.testValueIteration("VI_small");
+        List<Double> VIValues = gridWorld.testValueIteration("VI_small");
         //List<Double> QValues = gridWorld.qLearning(outputPath);
 
         //gridWorld.visualize(outputPath);
