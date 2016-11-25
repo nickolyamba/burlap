@@ -142,9 +142,9 @@ public class MyGridWorld {
 
     public List<Double> testValueIteration(String filename){
         System.out.println("\nValue Iteration: \n---------------------------------------\n");
-        double discountRate = 0.9, termDelta= 0.001, compTime=0.0, start, end, numActions=0.0;
+        double discountRate = 0.9, termDelta= 0.001, compTime=0.0, start, end, numActions;
         int maxIterations = 0;
-        final int MAX_ITER = 15, TRIALS = 10;
+        final int MAX_ITER = 20, TRIALS = 10;
 
         Planner planner = null;
         Policy p = null;
@@ -155,7 +155,7 @@ public class MyGridWorld {
 
         for(int j = 1; j <= TRIALS; j++)
         {
-            for(int i = 1; i <= 15; i++)
+            for(int i = 1; i <= MAX_ITER; i++)
             {
                 maxIterations = i;
                 // We've chossen for VI to terminate when either the changes in the value function
@@ -229,9 +229,9 @@ public class MyGridWorld {
     public List<Double>  testPolicyIteration(String filename){
         System.out.println("\nPolicy Iteration: \n---------------------------------------\n");
         double discountRate = 0.9, evalDelta = 0.0000000001, PIDelta = 0.000000001,
-                start, end, compTime=0.0, numActions=0.0;
+                start, end, compTime=0.0, numActions;
         int maxEvaluationIterations=2, maxPolicyIters;
-        final int MAX_ITER = 15, TRIALS = 10;
+        final int MAX_ITER = 20, TRIALS = 10;
 
         // We've chossen for VI to terminate when either the changes in the value function
         // are no longer than 0.001, or 100 iterations
@@ -386,7 +386,7 @@ public class MyGridWorld {
         System.out.println("\nQ-Learning: \n---------------------------------------\n");
 
         final int NUM_ITER = 100;
-        int numActions = 0, mod_factor = NUM_ITER/10;
+        int numActions = 0, mod_factor = NUM_ITER/10; // how often update epsilon
         double discountRate = 0.9, qInitial = 0.0, learningRate_const = 0.9,
                 iterTime=0.0, totalTime = 0.0, epsilon=0.9, epsilonFactor = mod_factor*epsilon/(NUM_ITER*0.9);
 
@@ -399,7 +399,7 @@ public class MyGridWorld {
 
         for(int j = 1; j <= 10; j++)
         {
-            epsilon=0.5;
+            epsilon=0.7;
             agent = new QLearning(domain, discountRate, hashingFactory, qInitial, learningRate_const);
             learningRate = new ExponentialDecayLR(0.8, 0.9998, 0.001);
             EpsilonGreedy epsilonObj = new EpsilonGreedy((QProvider) agent, epsilon);
@@ -462,7 +462,7 @@ public class MyGridWorld {
         return allValues;
     }
 
-    public void writeToCSVAverage(Map<Integer, List<Double>> mapAverage, String filename){
+    private void writeToCSVAverage(Map<Integer, List<Double>> mapAverage, String filename){
         StringBuffer result = new StringBuffer();
         String path = String.format("results/%1s.csv", filename);
         String headerLine = "Iteration#,Time,Actions,\n";
@@ -577,12 +577,13 @@ public class MyGridWorld {
         //example.sarsaLearningExample(outputPath);
         //List<Double> PIValues = gridWorld.policyIteration(outputPath);
         //List<Double> VIValues = gridWorld.valueIteration(outputPath);
-        //List<Double> QValues = gridWorld.testQLearning("Q_small");
-
-        //gridWorld.testPolicyIteration("TI_small");
-
-        List<Double> VIValues = gridWorld.testValueIteration("VI_small");
         //List<Double> QValues = gridWorld.qLearning(outputPath);
+
+        // ---------------------- Tests ----------------------------//
+        List<Double> QValues = gridWorld.testQLearning("Q_small_0.99");
+        //List<Double> PIValues = gridWorld.testPolicyIteration("PI_small_0999");
+        //List<Double> VIValues = gridWorld.testValueIteration("VI_small_0999");
+
 
         //gridWorld.visualize(outputPath);
 
@@ -597,7 +598,7 @@ public class MyGridWorld {
     }
 
 	public static void main(String[] args) {
-		int IS_SMALL = 1;
+		int IS_SMALL = 0;
 
 		int [][] map_small = new int[][]{
 				{0,0,0,1,0},
@@ -642,7 +643,7 @@ public class MyGridWorld {
 
 	}//main()
 
-    private static void writeToCSV(String filename, String headerLine, StringBuffer result) {
+    private static void writeToCSV(String filename, String headerLine, StringBuffer result){
         try{
             File file = new File(filename);
             FileWriter fileWriter;
@@ -655,7 +656,13 @@ public class MyGridWorld {
                     throw new IllegalStateException("Couldn't create dir: " + parent);
 
                 // Create file and add header
-                file.createNewFile();
+                try {
+                    if (!file.createNewFile()) {
+                        System.out.println("Couldn't create file: " + file.getAbsolutePath());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 fileWriter = new FileWriter(filename);
                 BufferedWriter bufferWritter = new BufferedWriter(fileWriter);
                 bufferWritter.write(headerLine);
