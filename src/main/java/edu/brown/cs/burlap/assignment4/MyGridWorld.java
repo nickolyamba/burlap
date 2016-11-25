@@ -46,10 +46,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author Nikolay Goncharenko.
@@ -148,6 +146,7 @@ public class MyGridWorld {
         double discountRate = 0.9, termDelta= 0.001, compTime=0.0, start, end;
         int maxIterations;
 
+
         Planner planner = null;
         Policy p = null;
         for(maxIterations = 1; maxIterations <= 15; maxIterations++)
@@ -207,35 +206,59 @@ public class MyGridWorld {
 
     public List<Double>  testPolicyIteration(String filename){
         System.out.println("\nPolicy Iteration: \n---------------------------------------\n");
-        double discountRate = 0.9, evalDelta = 0.00000001, PIDelta = 0.00000001, start, end, compTime=0.0;
+        double discountRate = 0.9, evalDelta = 0.0000000001, PIDelta = 0.000000001, start, end, compTime=0.0;
         int maxEvaluationIterations=2, maxPolicyIters;
+        final int MAX_ITER = 15, TRIALS = 10;
 
         // We've chossen for VI to terminate when either the changes in the value function
         // are no longer than 0.001, or 100 iterations
         Planner planner = null;
         Policy p = null;
+        Episode e = null;
 
-        for(maxPolicyIters = 1; maxPolicyIters <= 15; maxPolicyIters++)
+        // hashmap to store time and number of steps for each iteration
+        Map<Integer, List<List<Double>> > map = initResultMap(MAX_ITER);
+
+        // 10 iterations to produce an average result
+        for(int j = 1; j <= TRIALS; j++)
         {
-            planner = new PolicyIteration(domain, discountRate, hashingFactory, PIDelta, evalDelta,
-                    maxEvaluationIterations, maxPolicyIters);
-            start = System.nanoTime();
-            p = planner.planFromState(initialState);
-            end = System.nanoTime();
-            compTime = end - start;
-            compTime /= Math.pow(10,9);
+            for(int i = 1; i <= 15; i++)
+            {
+                maxPolicyIters = i;
+                planner = new PolicyIteration(domain, discountRate, hashingFactory, PIDelta, evalDelta,
+                        maxEvaluationIterations, maxPolicyIters);
 
-            // write to CSV
-            writeEpisodeToCSV(PolicyUtils.rollout(p, initialState, domain.getModel()), maxPolicyIters, compTime, filename);
-        }
+                start = System.nanoTime();
+                p = planner.planFromState(initialState);
+                end = System.nanoTime();
 
-        PolicyUtils.rollout(p, initialState, domain.getModel()).write("output/" + "pi");
+                compTime = end - start;
+                compTime /= Math.pow(10,9);
+
+                e = PolicyUtils.rollout(p, initialState, domain.getModel());
+                //e.write("output/" + "pi");
+
+                // Store results in the map
+                map.get(i).get(0).add(compTime);
+                map.get(i).get(1).add((double)e.numActions());
+
+                System.out.println(String.format("Time: %1$.4f,  Steps: %2$d\n\n", compTime, e.numActions()));
+                // write to CSV
+                //writeEpisodeToCSV(PolicyUtils.rollout(p, initialState, domain.getModel()), maxPolicyIters, compTime, filename);
+            }//for i  run PI with different number of iterations
+        }//for j number of trials
+
+        // Get avg for each iteration and save in .csv
+        Map<Integer, List<Double>> mapAverage = mapAverage(map, MAX_ITER);
+        writeToCSVAverage(mapAverage, filename);
 
         int policyIters = ((PolicyIteration)planner).getTotalPolicyIterations();
         int valueIters = ((PolicyIteration)planner).getTotalValueIterations();
+
+        // show result of the last iter = MAX_ITER
+        e.write("output/" + "pi");
         String title = "PI. Time:%5$.4f  Discount: %1$.2f  Termination = %2$.3f  PolicyIters = %3$d  ValueIters = %4$d";
         String output = String.format(title, discountRate, evalDelta, policyIters, valueIters, compTime);
-
         List<Double> allValues = simpleValueFunctionVis((ValueFunction)planner, p, output);
         System.out.println(output);
 
@@ -322,11 +345,12 @@ public class MyGridWorld {
         return map;
     }//initResultMap()
 
-    private Map<Integer, List<Double>> mapAverage(Map<Integer, List<List<Double>> > map, int NUM_ITER){
+    private Map<Integer, List<Double>> mapAverage(Map<Integer, List<List<Double>> > avgMap, int NUM_ITER){
         Map<Integer, List<Double>> mapAverage = new HashMap<>();
         for(int i = 1; i <= NUM_ITER; i++){
-            double avgTime = map.get(i).get(0).stream().mapToDouble((x) -> x).average().getAsDouble();
-            double avgSteps = map.get(i).get(1).stream().mapToDouble((x) -> x).average().getAsDouble();
+            double avgTime = avgMap.get(i).get(0).stream().mapToDouble((x) -> x).average().orElse(0.0);
+            double avgSteps = avgMap.get(i).get(1).stream().filter(Objects::nonNull).mapToDouble((x) -> x).average().orElse(0.0);
+            //double avgSteps = avgMap.get(i).get(1).stream().filter(Objects::nonNull).mapToDouble((x) -> x).average().getAsDouble();
             List<Double> avgList = new ArrayList<>(2);
             avgList.add(avgTime); avgList.add(avgSteps);
             mapAverage.put(i, avgList);
@@ -334,7 +358,7 @@ public class MyGridWorld {
         return mapAverage;
     }//mapAverage()
 
-    private List<Double> testQLearning(String filename){
+    public List<Double> testQLearning(String filename){
         System.out.println("\nQ-Learning: \n---------------------------------------\n");
 
         final int NUM_ITER = 100;
@@ -342,6 +366,7 @@ public class MyGridWorld {
         double discountRate = 0.9, qInitial = 0.0, learningRate_const = 0.9,
                 iterTime=0.0, totalTime = 0.0, epsilon=0.9, epsilonFactor = mod_factor*epsilon/(NUM_ITER*0.9);
 
+        // hashmap to store time and number of steps for each iteration
         Map<Integer, List<List<Double>> > map = initResultMap(NUM_ITER);
 
         Episode e = null;
@@ -387,20 +412,21 @@ public class MyGridWorld {
             }//for i
 
             totalTime = timer.getTotalTime();
-/*
+            /*
             String title = "Q-Learning. Iterations: %5$d  Time: %3$.4f  Discount: %1$.2f  StepsToGoal = %2$d  Epsilon = %4$.1f";
             String output = String.format(title, discountRate, e.numActions(), totalTime, epsilon, NUM_ITER);
             List<Double> allValues = simpleValueFunctionVis((ValueFunction)agent, new GreedyQPolicy((QProvider) agent), output);
             System.out.println(output);*/
         }//for j
 
-        // Store avg for each iteration
+        // Get avg for each iteration and save in .csv
         Map<Integer, List<Double>> mapAverage = mapAverage(map, NUM_ITER);
-        writeEpisodeToCSVQLEarn(mapAverage, filename);
+        writeToCSVAverage(mapAverage, filename);
 
         // output last iter
         e.write("output/" + "ql");
 
+        // show result
         String title = "Q-Learning. Iterations: %5$d  Time: %3$.4f  Discount: %1$.2f  StepsToGoal = %2$d  Epsilon = %4$.1f";
         String output = String.format(title, discountRate, e.numActions(), totalTime, epsilon, NUM_ITER);
         List<Double> allValues = simpleValueFunctionVis((ValueFunction)agent, new GreedyQPolicy((QProvider) agent), output);
@@ -412,7 +438,7 @@ public class MyGridWorld {
         return allValues;
     }
 
-    public void writeEpisodeToCSVQLEarn(Map<Integer, List<Double>> mapAverage, String filename){
+    public void writeToCSVAverage(Map<Integer, List<Double>> mapAverage, String filename){
         StringBuffer result = new StringBuffer();
         String path = String.format("results/%1s.csv", filename);
         String headerLine = "Iteration#,Time,Actions,\n";
@@ -421,11 +447,11 @@ public class MyGridWorld {
         for(int i = 1; i <= numIter; i++){
             result.append(i); result.append(",");
             result.append(dfTime.format(mapAverage.get(i).get(0))); result.append(",");
-            result.append((mapAverage.get(i).get(1)).intValue()); result.append("\n");
+            result.append(Math.round(mapAverage.get(i).get(1))); result.append("\n");
         }
 
         writeToCSV(path, headerLine, result);
-        //System.out.println(result);
+        System.out.println(result);
     }
 
     public void writeEpisodeToCSV(Episode e, int iteration, double time, String filename){
@@ -526,24 +552,24 @@ public class MyGridWorld {
 
         //example.sarsaLearningExample(outputPath);
         //List<Double> PIValues = gridWorld.policyIteration(outputPath);
-        List<Double> VIValues = gridWorld.valueIteration(outputPath);
-        List<Double> QValues = gridWorld.testQLearning("Q_small");
+        //List<Double> VIValues = gridWorld.valueIteration(outputPath);
+        //List<Double> QValues = gridWorld.testQLearning("Q_small");
 
-        /*for(int i = 0; i < 10; i++)
-            gridWorld.testPolicyIteration("TI_small");
-         */
+        gridWorld.testPolicyIteration("TI_small");
 
         //List<Double> VIValues = gridWorld.testValueIteration("VI_small");
         //List<Double> QValues = gridWorld.qLearning(outputPath);
 
         //gridWorld.visualize(outputPath);
 
+        /*
         double delta = 0;
         //example.experimentAndPlotter();
         for(int i = 0; i < VIValues.size(); i++)
             delta += Math.abs(VIValues.get(i) - QValues.get(i));
 
         System.out.println("Difference: " + delta);
+        */
     }
 
 	public static void main(String[] args) {
