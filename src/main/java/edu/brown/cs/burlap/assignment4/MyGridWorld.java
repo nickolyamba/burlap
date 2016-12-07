@@ -646,20 +646,23 @@ public class MyGridWorld {
 
         // ---------------------- Tests ----------------------------//
         List<Double> QValues = gridWorld.testQLearning("Q_large_10000iter");
-        List<Double> PIValues = gridWorld.testPolicyIteration("PI_large");
-        List<Double> VIValues = gridWorld.testValueIteration("VI_large");
+        //List<Double> PIValues = gridWorld.testPolicyIteration("PI_large");
+        //List<Double> VIValues = gridWorld.testValueIteration("VI_large");
 
-
+        // visualize using data saved in the "./output directory
         gridWorld.visualize(outputPath);
-
+/*
         double delta = 0;
         for (int i = 0; i < VIValues.size(); i++)
             delta += Math.abs(VIValues.get(i) - QValues.get(i));
 
-        System.out.println("Difference: " + delta);
+        System.out.println("Difference: " + delta);*/
     }
 
     public static void main(String[] args) {
+        // set the world to explore
+        // 0 --> Large Grid World 20 x 20
+        // 1 --> Small Grid World 5 x 5
         int IS_SMALL = 0;
 
         int[][] map_small = new int[][]{
